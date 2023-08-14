@@ -99,3 +99,18 @@ export const getMessages = (conversation_id) => {
     method: "GET",
   });
 };
+
+// get all users
+export const getAllUsers = () => {
+  return customFetch(API_URLS.getAllUsers(), {
+    method: "GET",
+  });
+};
+
+// Get private chats
+export const getPrivateChats = (formData) => {
+  return customFetch(API_URLS.getPrivateChats(), {
+    body: { ...formData },
+    method: "POST",
+  });
+};

@@ -8,6 +8,7 @@ const Container = styled.div`
     color: white;
   }
 `;
+// Displays room list
 const RoomPanel = ({ rooms, setSelectedRoom, selectedRoom }) => {
   return (
     <div
@@ -29,7 +30,6 @@ const RoomPanel = ({ rooms, setSelectedRoom, selectedRoom }) => {
               }}
             >
               {room.name}
-              {/* {room._id} */}
             </Container>
           );
         })}

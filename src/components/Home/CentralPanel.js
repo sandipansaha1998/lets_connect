@@ -4,10 +4,18 @@ import SendIcon from "@mui/icons-material/Send";
 import { useAuthContext } from "../../hooks";
 import CircularProgress from "@mui/material/CircularProgress";
 import KeyboardReturnIcon from "@mui/icons-material/KeyboardReturn";
-import { createRoom, getMessages, sendMessage } from "../../api";
+import Button from "react-bootstrap/Button";
+import Modal from "react-bootstrap/Modal";
+import {
+  createRoom,
+  getMessages,
+  getPrivateChats,
+  sendMessage,
+} from "../../api";
 import { notify } from "../Notification";
 import ChatsPanel from "./CentralPanel/ChatsPanel";
 import LinearProgress from "@mui/material/LinearProgress";
+import { socketManager, socket, connectionManager } from "../../socket";
 
 const CentralPanel = ({
   rooms,
@@ -16,15 +24,37 @@ const CentralPanel = ({
   setSelectedRoom,
   isChatLoading,
   setIsChatLoading,
+  privateTextReciever,
+  setPrivateTextReciever,
 }) => {
   const auth = useAuthContext();
 
   const [isChatMode, setisChatMode] = useState(true);
   const [textContent, setTextContent] = useState("");
   const [showHelp, setShowHelp] = useState(false);
-  const [chats, setChats] = useState([]);
+  const [isMessageSent, setIsMessageSent] = useState(true);
+  const [chats, setChats] = useState(null);
+
   useEffect(() => {
+    // Initializes socket connection and adds listner for real time chat updates
+    let connectSocket = () => {
+      connectionManager(socket).connect();
+      console.log("Connection Attempted");
+      socketManager.addListener(
+        "broadcast_message",
+        ({ conversation_id, message }) => {
+          if (selectedRoom && conversation_id === selectedRoom._id) {
+            setChats([...chats, message]);
+          }
+        }
+      );
+    };
+    if (chats) connectSocket();
+  }, [chats, selectedRoom]);
+  useEffect(() => {
+    // Retrieving chats for the selected conversation
     let getChats = async (conversation_id) => {
+      setIsChatLoading(true);
       let response = await getMessages(selectedRoom?._id);
       setIsChatLoading(false);
 
@@ -40,17 +70,21 @@ const CentralPanel = ({
     } else {
       setChats([]);
     }
+    return () => {
+      socketManager.removeListener("broadcast_message");
+    };
   }, [selectedRoom]);
 
+  // Handles text input change
   const handleTextInputChange = (e) => {
     if (e.target.value[0] === "/") setisChatMode(false);
     else setisChatMode(true);
     setTextContent(e.target.value);
   };
 
+  // handles button submision
   const handleSubmitAction = async (e) => {
     let code = e.keyCode ? e.keyCode : e.which;
-    console.log(e);
     if (code === 13 || e.type === "click") {
       if (!isChatMode) {
         // Handles Command:
@@ -83,33 +117,45 @@ const CentralPanel = ({
             return notify().error(`${roomName} does not exsist`);
           else {
             setSelectedRoom(getRoom[0]);
-            setIsChatLoading(true);
           }
           setTextContent("/");
-          // Leave a room
+        } else if (textContent.trim().match(/^\/private (\w+)$/)) {
+          // To be implemented
+          // Private message
+          // let receiver_number = textContent.split(" ")[1];
+          // let privateChats = await getPrivateChats({ receiver_number });
         } else if (textContent.trim() === "/leave") {
+          // Leave a room
           setSelectedRoom(null);
           setTextContent("/");
         } else if (textContent.trim() === "/help") {
           setShowHelp(true);
-        } else if (textContent.trim() === "/hide-help") {
-          setShowHelp(false);
         } else {
           notify().error("Invalid Command");
         }
       } else {
         //  Sends message to room
         if (textContent === "") return;
-        setIsChatLoading(true);
-        sendMessage({
+        // setIsChatLoading(true);
+        setIsMessageSent(false);
+        let newMessage = await sendMessage({
           content: textContent,
           conversation_id: selectedRoom._id,
           isRoom: true,
         }).then((response) => {
           if (!response.success) notify().error("Failed to send");
+          else {
+            return response.data;
+          }
         });
+        console.log(newMessage);
+        setIsMessageSent(true);
+        setChats([...chats, newMessage.message]);
+        // console.log(newMessage);
+        // console.log(socket);
+        socket.emit("message", newMessage);
         setTextContent("");
-        setIsChatLoading(false);
+        // setIsChatLoading(false);
       }
     }
   };
@@ -146,7 +192,7 @@ const CentralPanel = ({
             type="text"
             className={`col-11 ${!isChatMode && "bg-dark text-light"} `}
             style={(isChatLoading && { opacity: 0.5 }, { marginRight: "4px" })}
-            placeholder="Enter your message here"
+            placeholder="Enter your message here or press / to enter terminal mode"
             onKeyDown={handleSubmitAction}
             onChange={handleTextInputChange}
             disabled={isChatLoading ? true : false}
@@ -161,7 +207,7 @@ const CentralPanel = ({
             disabled={isChatLoading ? true : false}
           >
             {isChatMode &&
-              (isChatLoading ? (
+              (!isMessageSent ? (
                 <CircularProgress fontSize="small" className="text-light" />
               ) : (
                 <SendIcon />
@@ -175,6 +221,32 @@ const CentralPanel = ({
           </button>
         </div>
       </div>
+      <Modal
+        show={showHelp}
+        onHide={() => {
+          setShowHelp(false);
+        }}
+      >
+        {/* Help Modal */}
+        <Modal.Header closeButton>
+          <Modal.Title>Manual</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="d-flex flex-column gap-3">
+          <div>
+            <span className="bg-dark text-light p-1">/create _room_name_</span>
+            <span> create room</span>
+          </div>
+          <div>
+            <span className="bg-dark text-light p-1">/leave</span>
+            <span> leave room</span>
+          </div>
+          <div>
+            <span className="bg-dark text-light p-1">/help</span>
+            <span> displays manual</span>
+          </div>
+        </Modal.Body>
+        <Modal.Footer></Modal.Footer>
+      </Modal>
     </div>
   );
 };

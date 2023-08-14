@@ -1,4 +1,4 @@
-const API_ROOT = "http://localhost:8000/api/v1";
+const API_ROOT = "https://letsconnect-api.onrender.com/api/v1";
 
 export const API_URLS = {
   login: () => `${API_ROOT}/user/create-session`,
@@ -8,6 +8,8 @@ export const API_URLS = {
   sendMessage: () => `${API_ROOT}/room/send-message`,
   getMessages: (conversation_id) =>
     `${API_ROOT}/room/get-messages/${conversation_id}`,
+  getAllUsers: () => `${API_ROOT}/user/get-all`,
+  getPrivateChats: () => `${API_ROOT}/private-room`,
 };
 
 // Helper functions to read and write on local storage

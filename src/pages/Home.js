@@ -5,7 +5,7 @@ import { useAuthContext, useProvideAuth } from "../hooks";
 import CentralPanel from "../components/Home/CentralPanel";
 import RoomPanel from "../components/Home/RoomPanel";
 import RightPanel from "../components/Home/RightPanel";
-import { getAllRooms } from "../api";
+import { getAllRooms, getAllUsers } from "../api";
 import { notify } from "../components/Notification";
 
 const Home = () => {
@@ -13,6 +13,7 @@ const Home = () => {
   const { loading, setLoading } = useProvideAuth();
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [rooms, setRooms] = useState([]);
+  const [users, setUsers] = useState([]);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [privateTextReciever, setPrivateTextReciever] = useState(null);
 
@@ -25,9 +26,19 @@ const Home = () => {
       } else {
         notify().error("Rooms could not be fetched");
       }
+    };
+    let fetchAllUsers = async () => {
+      let response = await getAllUsers();
+      if (response.success) {
+        console.log(response);
+        setUsers(response.data.allUsers);
+      } else {
+        notify().error("Users Could not be fetched");
+      }
       setLoading(false);
     };
     fetchAllRooms();
+    fetchAllUsers();
   }, []);
 
   return (
@@ -55,11 +66,18 @@ const Home = () => {
             setRooms={setRooms}
             selectedRoom={selectedRoom}
             setSelectedRoom={setSelectedRoom}
+            privateTextReciever={privateTextReciever}
+            setPrivateTextReciever={setPrivateTextReciever}
             isChatLoading={isChatLoading}
             setIsChatLoading={setIsChatLoading}
           />
           {/* RightPanel */}
-          <RightPanel user={auth.user} />
+          <RightPanel
+            user={auth.user}
+            users={users}
+            privateTextReciever={privateTextReciever}
+            setPrivateTextReciever={setPrivateTextReciever}
+          />
         </div>
       )}
     </>
